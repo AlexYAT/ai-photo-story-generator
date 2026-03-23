@@ -1,11 +1,11 @@
 # photo_to_story
 
-Минимальное CLI-приложение: анализ изображения через OpenAI Vision, короткая история на заданном языке и озвучка (TTS). Результаты сохраняются в `outputs/<timestamp>/`.
+CLI: анализ фото (OpenAI Vision), короткая история на выбранном языке, озвучка (TTS). Результаты пишутся в каталог `<output-dir>/<timestamp>/`.
 
 ## Требования
 
 - Python 3.11+
-- Переменные окружения (см. `.env.example`): `OPENAI_API_KEY`, `OPENAI_MODEL` (чат и vision), `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE`
+- Ключ OpenAI и имена моделей в `.env` (см. `.env.example`)
 
 ## Установка
 
@@ -14,17 +14,26 @@ cd /path/to/Project
 python -m venv .venv
 ```
 
-Активация виртуального окружения:
-
-- Windows (PowerShell): `.\.venv\Scripts\Activate.ps1`
-- Linux/macOS: `source .venv/bin/activate`
+Активация venv: Windows PowerShell `.\.venv\Scripts\Activate.ps1`; Linux/macOS `source .venv/bin/activate`.
 
 ```bash
 pip install -r requirements.txt
 copy .env.example .env
 ```
 
-Отредактируйте `.env`: укажите `OPENAI_API_KEY` и при необходимости модели (`OPENAI_MODEL`, `OPENAI_TTS_MODEL`, `OPENAI_TTS_VOICE`).
+## Настройка `.env`
+
+Заполните `OPENAI_API_KEY`. При необходимости задайте модели:
+
+| Переменная | Назначение |
+|------------|------------|
+| `OPENAI_API_KEY` | API-ключ |
+| `OPENAI_VISION_MODEL` | Модель для анализа изображения |
+| `OPENAI_CHAT_MODEL` | Модель для текста истории |
+| `OPENAI_TTS_MODEL` | Модель озвучки |
+| `OPENAI_TTS_VOICE` | Голос TTS |
+
+Устаревшее имя `OPENAI_MODEL` (если задано без vision/chat) используется как значение по умолчанию для обеих LLM-моделей.
 
 ## Запуск
 
@@ -34,28 +43,38 @@ copy .env.example .env
 python main.py --image path/to/photo.jpg
 ```
 
-Опции:
-
-- `--image` — путь к файлу изображения (обязательно)
-- `--output-dir` — базовая папка для прогонов (по умолчанию `outputs`)
-- `--lang` — язык истории (по умолчанию `ru`)
-
 Пример:
 
 ```bash
 python main.py --image .\photos\sample.png --output-dir outputs --lang ru
 ```
 
-В каталоге `outputs/<YYYYMMDD_HHMMSS>/` появятся:
+Аргументы:
 
-- `vision.json` — поля `summary`, `objects`, `mood`, `setting`
-- `story.txt` — текст истории (ориентир 500–900 символов)
+- `--image` — путь к изображению (`.png`, `.jpg`, `.jpeg`, `.webp`)
+- `--output-dir` — базовая папка для прогонов (по умолчанию `outputs`)
+- `--lang` — язык текста истории (по умолчанию `ru`)
+
+## Выходные файлы
+
+В каталоге `outputs/<YYYYMMDD_HHMMSS>/` (или ваш `--output-dir`):
+
+- `vision.json` — сцена: `summary`, `objects`, `mood`, `setting`
+- `story.txt` — текст истории
 - `story.mp3` — озвучка
+- `run_meta.json` — метаданные прогона (пути, модели, время, статус)
 
-## Ошибки
+В конце работы в консоль выводится краткий итог: каталог, список файлов, время выполнения.
 
-- Нет или неверный ключ: сообщение о необходимости `.env` / `OPENAI_API_KEY`
-- Файл изображения не найден: явное указание пути из `--image`
-- Ошибка API OpenAI: краткое описание ответа сервиса
+## Коды выхода
 
-Логи пишутся в консоль (уровень INFO).
+| Код | Ситуация |
+|-----|----------|
+| 0 | Успех |
+| 1 | Нет или неверная конфигурация (например, нет `OPENAI_API_KEY`) |
+| 2 | Файл изображения не найден или ошибка чтения |
+| 3 | Ошибка API OpenAI |
+| 4 | Ошибка записи результатов |
+| 5 | Неподдерживаемое расширение файла изображения |
+
+Логи: уровень INFO в stderr.

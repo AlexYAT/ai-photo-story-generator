@@ -43,13 +43,20 @@ def generate_story(
 
     try:
         response = client.chat.completions.create(
-            model=settings.openai_model,
+            model=settings.openai_chat_model,
             messages=[
                 {
                     "role": "system",
                     "content": (
-                        "You write vivid short fiction. The story must stay under 900 characters; "
-                        "aim for 500-800. Follow length constraints exactly."
+                        "You are a concise and grounded creative writer. "
+                        "Write a short, vivid story based on the scene JSON. "
+                        "Keep the narrative concrete and visually anchored. "
+                        "Use details from the scene (appearance, environment, objects). "
+                        "Target length: 500-800 characters. "
+                        "Hard limit: never exceed 900 characters. "
+                        "Avoid abstract философские рассуждения и обобщения. "
+                        "Do not add explanations, titles, or meta-text. "
+                        "Do not repeat the JSON verbatim."
                     ),
                 },
                 {"role": "user", "content": user},

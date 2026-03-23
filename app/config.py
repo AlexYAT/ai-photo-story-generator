@@ -21,7 +21,8 @@ def _env_str(name: str, default: str) -> str:
 @dataclass(frozen=True)
 class Settings:
     openai_api_key: str
-    openai_model: str
+    openai_vision_model: str
+    openai_chat_model: str
     openai_tts_model: str
     openai_tts_voice: str
 
@@ -33,9 +34,13 @@ def load_settings() -> Settings:
             "OPENAI_API_KEY is not set. Create a .env file (see .env.example) "
             "or export the variable in your environment."
         )
+    legacy = _env_str("OPENAI_MODEL", "")
+    vision = _env_str("OPENAI_VISION_MODEL", legacy or "gpt-4o")
+    chat = _env_str("OPENAI_CHAT_MODEL", legacy or "gpt-4o-mini")
     return Settings(
         openai_api_key=key,
-        openai_model=_env_str("OPENAI_MODEL", "gpt-4o"),
+        openai_vision_model=vision,
+        openai_chat_model=chat,
         openai_tts_model=_env_str("OPENAI_TTS_MODEL", "tts-1"),
         openai_tts_voice=_env_str("OPENAI_TTS_VOICE", "alloy"),
     )

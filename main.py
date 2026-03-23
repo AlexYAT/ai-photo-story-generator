@@ -37,18 +37,18 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--image",
         type=Path,
         required=True,
-        help="Path to the input image file.",
+        help="Path to an image file (.png, .jpg, .jpeg, .webp).",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=Path("outputs"),
-        help="Base directory for run folders (default: outputs).",
+        help="Base directory for timestamped run folders (default: outputs).",
     )
     parser.add_argument(
         "--lang",
         default="ru",
-        help="Story language code (default: ru).",
+        help="Story language code for the narrative text (default: ru).",
     )
     return parser.parse_args(argv)
 
@@ -76,6 +76,9 @@ def main(argv: list[str] | None = None) -> int:
     except FileNotFoundError as exc:
         logger.error("%s", exc)
         return 2
+    except ValueError as exc:
+        logger.error("%s", exc)
+        return 5
     except OSError as exc:
         logger.error("Cannot read image file: %s", exc)
         return 2
@@ -89,17 +92,38 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 3
 
+    input_resolved = str(args.image.expanduser().resolve())
+    output_base = str(args.output_dir.expanduser().resolve())
+    meta_base = {
+        "input_image": input_resolved,
+        "lang": args.lang,
+        "output_dir": output_base,
+        "vision_model": settings.openai_vision_model,
+        "story_model": settings.openai_chat_model,
+        "tts_model": settings.openai_tts_model,
+    }
+
     try:
         logger.info("Step 4: saving outputs")
         run_dir = make_run_dir(args.output_dir)
-        save_outputs(run_dir, vision, story, audio)
+        created, elapsed = save_outputs(
+            run_dir,
+            vision,
+            story,
+            audio,
+            meta_base,
+            t0,
+        )
     except OSError as exc:
         logger.error("Failed to write output files: %s", exc)
         return 4
 
-    elapsed = time.perf_counter() - t0
     logger.info("Execution time: %.2f sec", elapsed)
-    print(f"Execution time: {elapsed:.2f} sec", file=sys.stdout)
+    print(f"\nOutput directory:\n  {run_dir}\n", file=sys.stdout)
+    print("Files created:", file=sys.stdout)
+    for name in created:
+        print(f"  - {name}", file=sys.stdout)
+    print(f"\nExecution time: {elapsed:.2f} sec\n", file=sys.stdout)
 
     logger.info("Done. Files saved under %s", run_dir)
     return 0

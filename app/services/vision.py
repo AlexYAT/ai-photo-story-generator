@@ -79,7 +79,7 @@ def analyze_image(
 
     try:
         response = client.chat.completions.create(
-            model=settings.openai_model,
+            model=settings.openai_vision_model,
             messages=[
                 {"role": "system", "content": VISION_SYSTEM},
                 {

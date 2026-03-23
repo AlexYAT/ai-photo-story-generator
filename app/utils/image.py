@@ -6,16 +6,25 @@ import base64
 import mimetypes
 from pathlib import Path
 
+ALLOWED_IMAGE_SUFFIXES = frozenset({".png", ".jpg", ".jpeg", ".webp"})
+
 
 def prepare_image(image_path: Path) -> tuple[bytes, str]:
     """
     Read image file and infer MIME type.
-    Raises FileNotFoundError with a clear message if the path does not exist.
+    Raises FileNotFoundError if the path does not exist.
+    Raises ValueError if the file extension is not supported.
     """
     path = image_path.expanduser().resolve()
     if not path.is_file():
         raise FileNotFoundError(
             f"Image file not found: {path}. Check the path passed to --image."
+        )
+    suffix = path.suffix.lower()
+    if suffix not in ALLOWED_IMAGE_SUFFIXES:
+        allowed = ", ".join(sorted(ALLOWED_IMAGE_SUFFIXES))
+        raise ValueError(
+            f"Unsupported image format ({suffix!r}). Supported extensions: {allowed}."
         )
     raw = path.read_bytes()
     mime, _ = mimetypes.guess_type(str(path))
