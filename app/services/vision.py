@@ -16,6 +16,58 @@ from app.utils.image import encode_image, prepare_image
 logger = logging.getLogger(__name__)
 
 
+def _normalize_vision(data: dict[str, Any]) -> dict[str, Any]:
+    raw_summary = data.get("summary", "")
+    summary = "" if raw_summary is None else str(raw_summary)
+
+    objects = data.get("objects", [])
+    if not isinstance(objects, list):
+        objects = []
+    objects = [str(x) for x in objects if x is not None]
+
+    raw_mood = data.get("mood", "")
+    mood = "" if raw_mood is None else str(raw_mood)
+
+    raw_setting = data.get("setting", "")
+    setting = "" if raw_setting is None else str(raw_setting)
+
+    return {
+        "summary": summary,
+        "objects": objects,
+        "mood": mood,
+        "setting": setting,
+    }
+
+
+def _parse_vision_text(text: str) -> dict[str, Any]:
+    text = text.strip()
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        logger.warning(
+            "Vision response was not valid JSON; storing raw text in summary only."
+        )
+        return {
+            "summary": text,
+            "objects": [],
+            "mood": "",
+            "setting": "",
+        }
+
+    if not isinstance(data, dict):
+        logger.warning(
+            "Vision JSON root is not an object; storing raw text in summary only."
+        )
+        return {
+            "summary": text,
+            "objects": [],
+            "mood": "",
+            "setting": "",
+        }
+
+    return _normalize_vision(data)
+
+
 def analyze_image(
     settings: Settings,
     client: OpenAI,
@@ -25,7 +77,6 @@ def analyze_image(
     b64 = encode_image(raw)
     data_url = f"data:{mime};base64,{b64}"
 
-    logger.info("Calling vision model for image analysis")
     try:
         response = client.chat.completions.create(
             model=settings.openai_model,
@@ -49,30 +100,8 @@ def analyze_image(
             f"OpenAI Vision API error: {exc.message or str(exc)}"
         ) from exc
 
-    text = response.choices[0].message.content
-    if not text:
+    content = response.choices[0].message.content
+    if not content:
         raise RuntimeError("OpenAI Vision returned an empty response.")
 
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(
-            "OpenAI Vision returned invalid JSON. Raw (truncated): "
-            f"{text[:500]}..."
-        ) from exc
-
-    for key in ("summary", "objects", "mood", "setting"):
-        if key not in data:
-            raise RuntimeError(
-                f"Vision JSON is missing required field '{key}'. Got keys: {list(data)}"
-            )
-
-    if not isinstance(data["objects"], list):
-        raise RuntimeError("Vision JSON field 'objects' must be an array.")
-
-    return {
-        "summary": str(data["summary"]),
-        "objects": [str(x) for x in data["objects"]],
-        "mood": str(data["mood"]),
-        "setting": str(data["setting"]),
-    }
+    return _parse_vision_text(content)

@@ -2,17 +2,12 @@
 
 from __future__ import annotations
 
-import logging
-
 from openai import APIError, OpenAI
 
 from app.config import Settings
 
-logger = logging.getLogger(__name__)
-
 
 def generate_speech(settings: Settings, client: OpenAI, text: str) -> bytes:
-    logger.info("Synthesizing speech")
     try:
         response = client.audio.speech.create(
             model=settings.openai_tts_model,

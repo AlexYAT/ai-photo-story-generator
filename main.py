@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+import time
 from pathlib import Path
 
 from openai import APIError
@@ -64,9 +65,13 @@ def main(argv: list[str] | None = None) -> int:
 
     client = get_client(settings)
 
+    t0 = time.perf_counter()
     try:
+        logger.info("Step 1: analyzing image")
         vision = analyze_image(settings, client, args.image)
+        logger.info("Step 2: generating story")
         story = generate_story(settings, client, vision, args.lang)
+        logger.info("Step 3: generating speech")
         audio = generate_speech(settings, client, story)
     except FileNotFoundError as exc:
         logger.error("%s", exc)
@@ -85,11 +90,16 @@ def main(argv: list[str] | None = None) -> int:
         return 3
 
     try:
+        logger.info("Step 4: saving outputs")
         run_dir = make_run_dir(args.output_dir)
         save_outputs(run_dir, vision, story, audio)
     except OSError as exc:
         logger.error("Failed to write output files: %s", exc)
         return 4
+
+    elapsed = time.perf_counter() - t0
+    logger.info("Execution time: %.2f sec", elapsed)
+    print(f"Execution time: {elapsed:.2f} sec", file=sys.stdout)
 
     logger.info("Done. Files saved under %s", run_dir)
     return 0
