@@ -24,4 +24,7 @@ def generate_speech(settings: Settings, client: OpenAI, text: str) -> bytes:
             f"OpenAI TTS API error: {exc.message or str(exc)}"
         ) from exc
 
-    return response.content
+    audio = response.content
+    if not audio:
+        raise RuntimeError("OpenAI TTS returned empty audio; story.mp3 would be invalid.")
+    return audio

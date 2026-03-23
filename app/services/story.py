@@ -56,7 +56,7 @@ def generate_story(
     n = _count_chars(text)
     if n < 500 or n > 900:
         logger.warning(
-            "Story length %s is outside 500–900; keeping model output as-is.",
+            "Story length %s is outside 500-900; keeping model output as-is.",
             n,
         )
 

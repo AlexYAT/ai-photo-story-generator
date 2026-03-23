@@ -71,6 +71,9 @@ def main(argv: list[str] | None = None) -> int:
     except FileNotFoundError as exc:
         logger.error("%s", exc)
         return 2
+    except OSError as exc:
+        logger.error("Cannot read image file: %s", exc)
+        return 2
     except RuntimeError as exc:
         logger.error("%s", exc)
         return 3
@@ -81,8 +84,13 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 3
 
-    run_dir = make_run_dir(args.output_dir)
-    save_outputs(run_dir, vision, story, audio)
+    try:
+        run_dir = make_run_dir(args.output_dir)
+        save_outputs(run_dir, vision, story, audio)
+    except OSError as exc:
+        logger.error("Failed to write output files: %s", exc)
+        return 4
+
     logger.info("Done. Files saved under %s", run_dir)
     return 0
 
