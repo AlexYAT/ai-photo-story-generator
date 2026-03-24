@@ -3,22 +3,36 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" sizes="any">
+  <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='favicon-512.png') }}">
   <title>Результат — photo_to_story</title>
   <style>
     body { font-family: system-ui, Segoe UI, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.55; color: #1a1a1a; }
     h1 { font-size: 1.35rem; font-weight: 600; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.05rem; margin: 1.5rem 0 0.6rem; font-weight: 600; }
     .back { margin-bottom: 1.25rem; }
     .back a { color: #2563eb; text-decoration: none; }
     .back a:hover { text-decoration: underline; }
+    .card { background: #f8fafc; border-radius: 8px; padding: 1rem 1.1rem; margin: 1rem 0; border: 1px solid #e2e8f0; }
+    .card dt { font-weight: 600; margin-top: 0.65rem; font-size: 0.9rem; color: #0f172a; }
+    .card dt:first-child { margin-top: 0; }
+    .card dd { margin: 0.2rem 0 0 0; color: #334155; word-break: break-word; font-size: 0.95rem; }
     .preview { margin: 1rem 0; }
     .preview img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e5e5e5; }
-    .meta { background: #f8fafc; border-radius: 8px; padding: 0.75rem 1rem; margin: 1rem 0; font-size: 0.9rem; }
-    .meta dt { font-weight: 600; margin-top: 0.5rem; }
-    .meta dt:first-child { margin-top: 0; }
-    .meta dd { margin: 0.15rem 0 0 0; color: #334155; word-break: break-word; }
-    .story { white-space: pre-wrap; margin: 1rem 0; padding: 1rem; background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; }
-    audio { width: 100%; margin: 0.75rem 0; }
-    .paths { font-size: 0.85rem; color: #475569; }
+    .bar-wrap { background: #e2e8f0; border-radius: 6px; height: 10px; overflow: hidden; margin-top: 0.35rem; max-width: 20rem; }
+    .bar-fill { background: #2563eb; height: 100%; border-radius: 6px; transition: width 0.2s ease; }
+    .story { white-space: pre-wrap; margin: 0.75rem 0 0; padding: 1rem; background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.75rem 0 0; }
+    .actions a, .actions button {
+      display: inline-block; padding: 0.45rem 0.9rem; border-radius: 6px; font-size: 0.9rem; cursor: pointer;
+      text-decoration: none; border: 1px solid #cbd5e1; background: #fff; color: #1e293b;
+    }
+    .actions a.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .actions a.primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    .actions button:hover { background: #f1f5f9; }
+    audio { width: 100%; margin: 0.75rem 0 0; }
+    .paths { font-size: 0.85rem; color: #475569; margin-top: 1.25rem; }
+    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; background: #e0e7ff; color: #3730a3; font-size: 0.85rem; font-weight: 500; }
   </style>
 </head>
 <body>
@@ -31,7 +45,25 @@
   </div>
   {% endif %}
 
-  <dl class="meta">
+  <h2>Анализ изображения</h2>
+  <dl class="card">
+    <dt>scene_type</dt>
+    <dd><span class="badge">{{ vision_data.get('scene_type', '—') }}</span></dd>
+    <dt>confidence</dt>
+    <dd>
+      {% set c = vision_data.get('confidence', 0) | float %}
+      {% set pct = (c * 100) | round(0) | int %}
+      {% if pct > 100 %}{% set pct = 100 %}{% endif %}
+      {% if pct < 0 %}{% set pct = 0 %}{% endif %}
+      {{ pct }}%
+      <div class="bar-wrap" aria-hidden="true"><div class="bar-fill" style="width: {{ pct }}%;"></div></div>
+    </dd>
+  </dl>
+
+  <h2>Режим генерации</h2>
+  <dl class="card">
+    <dt>style</dt>
+    <dd><span class="badge">{{ meta.get('style', 'creative') }}</span></dd>
     <dt>Время выполнения</dt>
     <dd>{{ meta.get('execution_time_sec', '—') }} с</dd>
     <dt>Папка вывода</dt>
@@ -40,10 +72,14 @@
     <dd>{{ meta.get('lang', '—') }}</dd>
   </dl>
 
-  <h2 style="font-size:1.05rem; margin-top:1.5rem;">Текст истории</h2>
-  <div class="story">{{ story_text }}</div>
+  <h2>Текст истории</h2>
+  <div class="actions">
+    <button type="button" onclick="copyStory()">Скопировать текст</button>
+    <a class="primary" href="{{ download_mp3_url }}">Скачать аудио</a>
+  </div>
+  <div id="story-body" class="story">{{ story_text }}</div>
 
-  <h2 style="font-size:1.05rem;">Аудио</h2>
+  <h2 style="margin-top:1.5rem;">Аудио</h2>
   <audio controls src="{{ audio_url }}"></audio>
 
   <p class="paths">
@@ -51,5 +87,13 @@
     vision.json — {{ vision_path_str }}<br>
     story.txt — {{ story_path_str }}
   </p>
+
+  <script>
+    function copyStory() {
+      var el = document.getElementById("story-body");
+      if (!el || !navigator.clipboard) return;
+      navigator.clipboard.writeText(el.textContent || "").catch(function () {});
+    }
+  </script>
 </body>
 </html>

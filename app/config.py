@@ -18,6 +18,14 @@ def _env_str(name: str, default: str) -> str:
     return stripped if stripped else default
 
 
+def flask_debug_enabled() -> bool:
+    """True if FLASK_DEBUG is set to a truthy string (default: off)."""
+    raw = os.getenv("FLASK_DEBUG")
+    if raw is None:
+        return False
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
 @dataclass(frozen=True)
 class Settings:
     openai_api_key: str

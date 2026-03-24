@@ -3,20 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" sizes="any">
+  <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='favicon-512.png') }}">
   <title>photo_to_story</title>
   <style>
     body { font-family: system-ui, Segoe UI, sans-serif; max-width: 36rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; color: #1a1a1a; }
     h1 { font-size: 1.35rem; font-weight: 600; margin-bottom: 1rem; }
     label { display: block; margin: 0.75rem 0 0.35rem; font-weight: 500; }
     input[type="file"], select { width: 100%; box-sizing: border-box; padding: 0.5rem; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
-    button { margin-top: 1.25rem; padding: 0.55rem 1.2rem; border: none; border-radius: 6px; background: #2563eb; color: #fff; font-size: 1rem; cursor: pointer; }
-    button:hover { background: #1d4ed8; }
+    button[type="submit"] { margin-top: 1.25rem; padding: 0.55rem 1.2rem; border: none; border-radius: 6px; background: #2563eb; color: #fff; font-size: 1rem; cursor: pointer; }
+    button[type="submit"]:hover { background: #1d4ed8; }
     .hint { font-size: 0.875rem; color: #555; margin-top: 0.25rem; }
   </style>
 </head>
 <body>
   <h1>Фото → история → озвучка</h1>
-  <p>Загрузите изображение (PNG, JPG, JPEG, WEBP) и выберите язык текста истории.</p>
+  <p>Загрузите изображение (PNG, JPG, JPEG, WEBP) и выберите язык и режим текста.</p>
   <form action="{{ url_for('generate') }}" method="post" enctype="multipart/form-data">
     <label for="image">Изображение</label>
     <input type="file" id="image" name="image" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" required>
@@ -25,6 +27,11 @@
     <select id="lang" name="lang">
       <option value="ru" {% if default_lang == 'ru' %}selected{% endif %}>Русский (ru)</option>
       <option value="en" {% if default_lang == 'en' %}selected{% endif %}>English (en)</option>
+    </select>
+    <label for="style">Режим генерации</label>
+    <select id="style" name="style">
+      <option value="creative" selected>creative — художественный рассказ</option>
+      <option value="factual">factual — сухое описание без метафор</option>
     </select>
     <div>
       <button type="submit">Сгенерировать</button>

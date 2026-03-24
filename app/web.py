@@ -66,6 +66,9 @@ def create_app() -> Flask:
             return render_template("error.html", message="Файл изображения не выбран."), 400
 
         lang = (request.form.get("lang") or "ru").strip() or "ru"
+        style = (request.form.get("style") or "creative").strip().lower()
+        if style not in ("creative", "factual"):
+            style = "creative"
         suffix = Path(file.filename).suffix.lower()
         if suffix not in ALLOWED_IMAGE_SUFFIXES:
             return render_template(
@@ -78,7 +81,7 @@ def create_app() -> Flask:
         file.save(tmp_path)
 
         try:
-            result = run_pipeline(tmp_path, ROOT / "outputs", lang)
+            result = run_pipeline(tmp_path, ROOT / "outputs", lang, style)
         except ValueError as exc:
             tmp_path.unlink(missing_ok=True)
             if "OPENAI_API_KEY" in str(exc):
@@ -127,6 +130,7 @@ def create_app() -> Flask:
 
         vision_path = run_path / FILENAME_VISION_JSON
         story_path = run_path / FILENAME_STORY_TXT
+        vision_data = json.loads(vision_path.read_text(encoding="utf-8"))
 
         return render_template(
             "result.html",
@@ -137,6 +141,8 @@ def create_app() -> Flask:
             vision_path_str=str(vision_path),
             story_path_str=str(story_path),
             audio_url=url_for("media", run_name=run_name, filename=FILENAME_STORY_MP3),
+            download_mp3_url=url_for("download_mp3", run_name=run_name),
+            vision_data=vision_data,
         )
 
     @app.route("/media/<run_name>/<filename>")
@@ -147,5 +153,19 @@ def create_app() -> Flask:
         if not d.is_dir():
             abort(404)
         return send_from_directory(d, filename, as_attachment=False)
+
+    @app.route("/download/<run_name>/story.mp3")
+    def download_mp3(run_name: str):
+        if not RUN_NAME_RE.match(run_name):
+            abort(404)
+        d = output_root / run_name
+        if not d.is_dir():
+            abort(404)
+        return send_from_directory(
+            d,
+            FILENAME_STORY_MP3,
+            as_attachment=True,
+            download_name=f"story_{run_name}.mp3",
+        )
 
     return app

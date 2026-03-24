@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from app.config import flask_debug_enabled
 from app.web import create_app
 
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="127.0.0.1", port=5000, debug=flask_debug_enabled())

@@ -44,6 +44,12 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         default="ru",
         help="Story language code for the narrative text (default: ru).",
     )
+    parser.add_argument(
+        "--style",
+        choices=("creative", "factual"),
+        default="creative",
+        help="Story mode: creative (narrative) or factual (plain description). Default: creative.",
+    )
     return parser.parse_args(argv)
 
 
@@ -52,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
 
     try:
-        result = run_pipeline(args.image, args.output_dir, args.lang)
+        result = run_pipeline(args.image, args.output_dir, args.lang, args.style)
     except ValueError as exc:
         if "OPENAI_API_KEY" in str(exc):
             logger.error("%s", exc)
@@ -81,9 +87,15 @@ def main(argv: list[str] | None = None) -> int:
     run_dir = result["run_dir"]
     created = result["created_files"]
     elapsed = result["execution_time_sec"]
+    vision = result["vision"]
 
     logger.info("Execution time: %.2f sec", elapsed)
     print(f"\nOutput directory:\n  {run_dir}\n", file=sys.stdout)
+    print(
+        f"Analysis: scene_type={vision.get('scene_type')} "
+        f"confidence={vision.get('confidence')} style={result.get('style', 'creative')}",
+        file=sys.stdout,
+    )
     print("Files created:", file=sys.stdout)
     for name in created:
         print(f"  - {name}", file=sys.stdout)

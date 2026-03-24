@@ -22,10 +22,33 @@ from app.utils.files import (
 logger = logging.getLogger(__name__)
 
 
+def _low_info_message(lang: str) -> str:
+    if str(lang).lower().startswith("ru"):
+        return (
+            "Изображение содержит мало визуальной информации. "
+            "Невозможно построить содержательный рассказ."
+        )
+    return (
+        "The image contains little visual information. "
+        "A substantive narrative cannot be built."
+    )
+
+
+def _should_use_low_info_fallback(vision: dict[str, Any]) -> bool:
+    if vision.get("scene_type") == "low_info":
+        return True
+    try:
+        c = float(vision.get("confidence", 1))
+    except (TypeError, ValueError):
+        c = 1.0
+    return c < 0.35
+
+
 def run_pipeline(
     image_path: str | Path,
     output_dir: str | Path = "outputs",
     lang: str = "ru",
+    style: str = "creative",
 ) -> dict[str, Any]:
     """
     Run vision → story → TTS → save artifacts.
@@ -42,8 +65,21 @@ def run_pipeline(
     t0 = time.perf_counter()
     logger.info("Step 1: analyzing image")
     vision = analyze_image(settings, client, image_path)
-    logger.info("Step 2: generating story")
-    story = generate_story(settings, client, vision, lang)
+
+    logger.info(
+        "style=%s scene_type=%s confidence=%.2f",
+        style,
+        vision.get("scene_type"),
+        float(vision.get("confidence") or 0),
+    )
+
+    if _should_use_low_info_fallback(vision):
+        logger.info("Low-information scene: skipping story LLM; using short fallback text.")
+        story = _low_info_message(lang)
+    else:
+        logger.info("Step 2: generating story")
+        story = generate_story(settings, client, vision, lang, style)
+
     logger.info("Step 3: generating speech")
     audio = generate_speech(settings, client, story)
 
@@ -56,6 +92,9 @@ def run_pipeline(
         "vision_model": settings.openai_vision_model,
         "story_model": settings.openai_chat_model,
         "tts_model": settings.openai_tts_model,
+        "style": style,
+        "scene_type": vision.get("scene_type"),
+        "confidence": vision.get("confidence"),
     }
 
     logger.info("Step 4: saving outputs")
@@ -84,6 +123,7 @@ def run_pipeline(
         "story_text": story,
         "vision": vision,
         "lang": lang,
+        "style": style,
         "input_image": input_resolved,
         "output_dir_base": output_base,
         "run_meta": run_meta,

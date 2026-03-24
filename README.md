@@ -35,6 +35,7 @@ copy .env.example .env
 | `OPENAI_TTS_MODEL` | Модель озвучки |
 | `OPENAI_TTS_VOICE` | Голос TTS |
 | `FLASK_SECRET_KEY` | Секрет сессий Flask (для веб-интерфейса; в продакшене задайте случайную строку) |
+| `FLASK_DEBUG` | Режим отладки при `python webapp.py`: `true` / `false` (по умолчанию `false`) |
 
 Устаревшее имя `OPENAI_MODEL` (если задано без vision/chat) используется как значение по умолчанию для обеих LLM-моделей.
 
@@ -57,6 +58,37 @@ python main.py --image .\photos\sample.png --output-dir outputs --lang ru
 - `--image` — путь к изображению (`.png`, `.jpg`, `.jpeg`, `.webp`)
 - `--output-dir` — базовая папка для прогонов (по умолчанию `outputs`)
 - `--lang` — язык текста истории (по умолчанию `ru`)
+- `--style` — режим текста: `creative` (художественный рассказ) или `factual` (сухое описание без метафор), по умолчанию `creative`
+
+## Example inputs
+
+В `static/examples/` лежат четыре демо-изображения для тестов и отчётов:
+
+| Файл | Кейс |
+|------|------|
+| `example_1_ordinary.png` | **Ordinary image** — обычная фото-сцена с понятным содержимым. |
+| `example_2_text_screenshot.png` | **Text screenshot** — скриншот с текстом / интерфейсом. |
+| `example_3_plain_background.png` | **Plain background** — много пустого фона, мало объектов. |
+| `example_4_overloaded_collage.png` | **Overloaded collage** — плотная коллажная композиция, много деталей. |
+
+Подробное описание: [`docs/EXAMPLES_README.md`](docs/EXAMPLES_README.md).
+
+Пример запуска CLI:
+
+```bash
+python main.py --image static/examples/example_1_ordinary.png --lang ru
+```
+
+## Demo cases
+
+Ориентиры для демо-файлов в `static/examples/` (фактический `scene_type` / текст зависят от модели и эвристик):
+
+| Кейс | Что ожидается | Типичный результат |
+|------|----------------|-------------------|
+| **ordinary image** | Богатая сцена, `scene_type` ≈ `photo`, уверенность обычно высокая | Связный рассказ / фактическое описание по выбранному `--style` |
+| **text screenshot** | Много текста/UI → `screenshot` | Описание интерфейса или экрана, без выдуманного сюжета в factual |
+| **plain background** | Мало объектов → часто `low_info` или низкая уверенность | Короткий fallback-текст вместо длинной истории, если сцена признана малоинформативной |
+| **overloaded collage** | Много элементов → `collage` | Акцент на множестве фрагментов; при перегрузе возможна более осторожная формулировка |
 
 ## Запуск веб-интерфейса (Flask)
 
@@ -72,13 +104,13 @@ python webapp.py
 flask --app webapp run
 ```
 
-По умолчанию сервер: `http://127.0.0.1:5000`.
+По умолчанию сервер: `http://127.0.0.1:5000`. Режим отладки выключен (`FLASK_DEBUG=false`). Чтобы включить автоперезагрузку и страницу с трассировкой ошибок, задайте в `.env` строку `FLASK_DEBUG=true` и снова запустите `python webapp.py`.
 
 ### Маршруты
 
 | Метод | Путь | Описание |
 |--------|------|----------|
-| GET | `/` | Форма: загрузка изображения и язык (по умолчанию `ru`) |
+| GET | `/` | Форма: загрузка изображения, язык и режим `style` (creative / factual) |
 | POST | `/generate` | Запуск пайплайна, редирект на страницу результата |
 | GET | `/result/<timestamp>` | Текст истории, превью, аудио, метаданные |
 | GET | `/media/<timestamp>/<file>` | Раздача `story.mp3`, `vision.json` и др. из папки прогона |
@@ -89,7 +121,7 @@ flask --app webapp run
 
 В каталоге `outputs/<YYYYMMDD_HHMMSS>/` (или ваш `--output-dir`):
 
-- `vision.json` — сцена: `summary`, `objects`, `mood`, `setting`
+- `vision.json` — сцена: `summary`, `objects`, `mood`, `setting`, `scene_type`, `confidence`
 - `story.txt` — текст истории
 - `story.mp3` — озвучка
 - `run_meta.json` — метаданные прогона (пути, модели, время, статус)

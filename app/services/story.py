@@ -9,7 +9,7 @@ import re
 from openai import APIError, OpenAI
 
 from app.config import Settings
-from app.prompts import story_user_prompt
+from app.prompts import story_system_message, story_user_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -37,31 +37,21 @@ def generate_story(
     client: OpenAI,
     vision: dict,
     lang: str,
+    style: str = "creative",
 ) -> str:
     vision_json = json.dumps(vision, ensure_ascii=False)
-    user = story_user_prompt(lang, vision_json)
+    user = story_user_prompt(lang, vision_json, style)
+    system_msg = story_system_message(style)
+    temp = 0.75 if style == "factual" else 0.85
 
     try:
         response = client.chat.completions.create(
             model=settings.openai_chat_model,
             messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a concise and grounded creative writer. "
-                        "Write a short, vivid story based on the scene JSON. "
-                        "Keep the narrative concrete and visually anchored. "
-                        "Use details from the scene (appearance, environment, objects). "
-                        "Target length: 500-800 characters. "
-                        "Hard limit: never exceed 900 characters. "
-                        "Avoid abstract философские рассуждения и обобщения. "
-                        "Do not add explanations, titles, or meta-text. "
-                        "Do not repeat the JSON verbatim."
-                    ),
-                },
+                {"role": "system", "content": system_msg},
                 {"role": "user", "content": user},
             ],
-            temperature=0.85,
+            temperature=temp,
         )
     except APIError as exc:
         raise RuntimeError(
