@@ -1,5 +1,7 @@
 .venv/
-.env
 __pycache__/
-*.py[cod]
+.env
 outputs/
+*.pyc
+static/uploads/*
+!static/uploads/.gitkeep

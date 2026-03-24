@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Результат — photo_to_story</title>
+  <style>
+    body { font-family: system-ui, Segoe UI, sans-serif; max-width: 42rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.55; color: #1a1a1a; }
+    h1 { font-size: 1.35rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .back { margin-bottom: 1.25rem; }
+    .back a { color: #2563eb; text-decoration: none; }
+    .back a:hover { text-decoration: underline; }
+    .preview { margin: 1rem 0; }
+    .preview img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e5e5e5; }
+    .meta { background: #f8fafc; border-radius: 8px; padding: 0.75rem 1rem; margin: 1rem 0; font-size: 0.9rem; }
+    .meta dt { font-weight: 600; margin-top: 0.5rem; }
+    .meta dt:first-child { margin-top: 0; }
+    .meta dd { margin: 0.15rem 0 0 0; color: #334155; word-break: break-word; }
+    .story { white-space: pre-wrap; margin: 1rem 0; padding: 1rem; background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; }
+    audio { width: 100%; margin: 0.75rem 0; }
+    .paths { font-size: 0.85rem; color: #475569; }
+  </style>
+</head>
+<body>
+  <div class="back"><a href="{{ url_for('index') }}">← Новая генерация</a></div>
+  <h1>Результат</h1>
+
+  {% if preview_url %}
+  <div class="preview">
+    <img src="{{ preview_url }}" alt="Загруженное изображение">
+  </div>
+  {% endif %}
+
+  <dl class="meta">
+    <dt>Время выполнения</dt>
+    <dd>{{ meta.get('execution_time_sec', '—') }} с</dd>
+    <dt>Папка вывода</dt>
+    <dd>{{ meta.get('output_dir', '') }} / {{ run_name }} /</dd>
+    <dt>Язык</dt>
+    <dd>{{ meta.get('lang', '—') }}</dd>
+  </dl>
+
+  <h2 style="font-size:1.05rem; margin-top:1.5rem;">Текст истории</h2>
+  <div class="story">{{ story_text }}</div>
+
+  <h2 style="font-size:1.05rem;">Аудио</h2>
+  <audio controls src="{{ audio_url }}"></audio>
+
+  <p class="paths">
+    <strong>Файлы на диске:</strong><br>
+    vision.json — {{ vision_path_str }}<br>
+    story.txt — {{ story_path_str }}
+  </p>
+</body>
+</html>

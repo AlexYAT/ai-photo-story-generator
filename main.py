@@ -6,17 +6,11 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-import time
 from pathlib import Path
 
 from openai import APIError
 
-from app.clients.openai_client import get_client
-from app.config import load_settings
-from app.services.story import generate_story
-from app.services.tts import generate_speech
-from app.services.vision import analyze_image
-from app.utils.files import make_run_dir, save_outputs
+from app.pipeline import run_pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -58,28 +52,20 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
 
     try:
-        settings = load_settings()
+        result = run_pipeline(args.image, args.output_dir, args.lang)
     except ValueError as exc:
+        if "OPENAI_API_KEY" in str(exc):
+            logger.error("%s", exc)
+            return 1
         logger.error("%s", exc)
-        return 1
-
-    client = get_client(settings)
-
-    t0 = time.perf_counter()
-    try:
-        logger.info("Step 1: analyzing image")
-        vision = analyze_image(settings, client, args.image)
-        logger.info("Step 2: generating story")
-        story = generate_story(settings, client, vision, args.lang)
-        logger.info("Step 3: generating speech")
-        audio = generate_speech(settings, client, story)
+        return 5
     except FileNotFoundError as exc:
         logger.error("%s", exc)
         return 2
-    except ValueError as exc:
-        logger.error("%s", exc)
-        return 5
     except OSError as exc:
+        if "Failed to write output files" in str(exc):
+            logger.error("%s", exc)
+            return 4
         logger.error("Cannot read image file: %s", exc)
         return 2
     except RuntimeError as exc:
@@ -92,31 +78,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 3
 
-    input_resolved = str(args.image.expanduser().resolve())
-    output_base = str(args.output_dir.expanduser().resolve())
-    meta_base = {
-        "input_image": input_resolved,
-        "lang": args.lang,
-        "output_dir": output_base,
-        "vision_model": settings.openai_vision_model,
-        "story_model": settings.openai_chat_model,
-        "tts_model": settings.openai_tts_model,
-    }
-
-    try:
-        logger.info("Step 4: saving outputs")
-        run_dir = make_run_dir(args.output_dir)
-        created, elapsed = save_outputs(
-            run_dir,
-            vision,
-            story,
-            audio,
-            meta_base,
-            t0,
-        )
-    except OSError as exc:
-        logger.error("Failed to write output files: %s", exc)
-        return 4
+    run_dir = result["run_dir"]
+    created = result["created_files"]
+    elapsed = result["execution_time_sec"]
 
     logger.info("Execution time: %.2f sec", elapsed)
     print(f"\nOutput directory:\n  {run_dir}\n", file=sys.stdout)
